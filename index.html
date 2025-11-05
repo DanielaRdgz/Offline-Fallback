@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <title>Control Tienda Fallback</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2d6cdf">
+  <style>
+    .inline-80 { display: inline-block; width: 80px; }
+  </style>
+</head>
+<body>
+  <div class="container" id="new-entry">
+    <h3>New Entry</h3>
+    <form id="form-entry">
+      <div class="form-group">
+        <label class="inline-80">Code</label>
+        <input type="text" id="code" required />
+      </div>
+      <div class="form-group">
+        <label class="inline-80">Description</label>
+        <input type="text" id="descr" required />
+      </div>
+      <div class="form-group">
+        <label class="inline-80">UOM</label>
+        <input type="text" id="uom" required />
+      </div>
+      <div class="form-group">
+        <input type="submit" value="Save" class="btn btn-primary" />
+      </div>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <script src="js.js"></script>
+  <script>
+    // Registrar el Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+
+    const form = document.getElementById('form-entry');
+    const statusEl = document.getElementById('status');
+    const STORAGE_KEY = 'offline:entries';
+
+    const loadQueue = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const saveQueue = (queue) => localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
+
+    function updateStatus(msg) { statusEl.textContent = msg; }
+
+    function syncQueue() {
+      if (!navigator.onLine) return;
+      const queue = loadQueue();
+      if (queue.length === 0) return;
+      console.log('Sincronizando datos:', queue);
+      localStorage.removeItem(STORAGE_KEY);
+      updateStatus('Datos sincronizados correctamente.');
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = {
+        code: document.getElementById('code').value,
+        descr: document.getElementById('descr').value,
+        uom: document.getElementById('uom').value,
+        date: new Date().toISOString()
+      };
+
+      if (navigator.onLine) {
+        console.log('Envío exitoso:', data);
+        updateStatus('Datos enviados correctamente.');
+      } else {
+        const queue = loadQueue();
+        queue.push(data);
+        saveQueue(queue);
+        updateStatus('Sin conexión. Datos guardados temporalmente.');
+      }
+
+      form.reset();
+    });
+
+    window.addEventListener('online', () => {
+      updateStatus('Conectado.');
+      syncQueue();
+    });
+
+    window.addEventListener('offline', () => {
+      updateStatus('Modo offline activo.');
+    });
+  </script>
+</body>
+</html>
